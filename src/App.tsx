@@ -108,7 +108,7 @@ export default function App() {
       ? document.activeElement
       : null;
     const modal = modalRef.current;
-    const firstInput = modal?.querySelector<HTMLElement>("input:not([type=hidden]), textarea, select, button");
+    const firstInput = modal?.querySelector<HTMLElement>("form input:not([type=hidden]), form textarea, form select");
     firstInput?.focus();
 
     function handleKeyDown(event: KeyboardEvent) {
