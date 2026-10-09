@@ -77,7 +77,7 @@ export default function App() {
   const completedCount = tasks.filter((task) => task.completed).length;
   const activeCount = tasks.length - completedCount;
   const progress = tasks.length ? Math.round((completedCount / tasks.length) * 100) : 0;
-  const overdueCount = tasks.filter(isOverdue).length;
+  const overdueCount = tasks.filter((task) => isOverdue(task)).length;
 
   const visibleTasks = filterAndSortTasks(tasks, {
     search,
