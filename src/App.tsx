@@ -1,5 +1,6 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useState } from "react";
 import { filterAndSortTasks, isOverdue, type Priority, type Task, type DueFilter, type SortOption } from "./taskUtils";
+import { useLocalStorage } from "./useLocalStorage";
 import {
   Activity, CalendarDays, Check, CheckCheck, ChevronDown, Circle,
   ClipboardList, Clock3, Filter, LayoutDashboard, ListTodo, Plus,
@@ -39,13 +40,18 @@ const starterTasks: Task[] = [
   },
 ];
 
-function readTasks(): Task[] {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? (JSON.parse(stored) as Task[]) : starterTasks;
-  } catch {
-    return starterTasks;
-  }
+
+
+function isTaskArray(value: unknown): value is Task[] {
+  if (!Array.isArray(value)) return false;
+  return value.every((item: unknown) => {
+    if (typeof item !== "object" || item === null) return false;
+    const task = item as Record<string, unknown>;
+    return typeof task.id === "string" && typeof task.title === "string" &&
+      typeof task.description === "string" && typeof task.completed === "boolean" &&
+      (task.priority === "Low" || task.priority === "Medium" || task.priority === "High") &&
+      typeof task.dueDate === "string" && typeof task.createdAt === "number";
+  });
 }
 
 function formatDueDate(value: string) {
@@ -56,7 +62,7 @@ function formatDueDate(value: string) {
 
 
 export default function App() {
-  const [tasks, setTasks] = useState<Task[]>(readTasks);
+  const [tasks, setTasks] = useLocalStorage<Task[]>(STORAGE_KEY, starterTasks, isTaskArray);
   const [filter, setFilter] = useState<FilterType>("All tasks");
   const [search, setSearch] = useState("");
   const [priorityFilter, setPriorityFilter] = useState<Priority | "All">("All");
@@ -69,10 +75,6 @@ export default function App() {
   const [priority, setPriority] = useState<Priority>("Medium");
   const [dueDate, setDueDate] = useState("");
   const [formError, setFormError] = useState("");
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
-  }, [tasks]);
 
   const completedCount = tasks.filter((task) => task.completed).length;
   const activeCount = tasks.length - completedCount;
