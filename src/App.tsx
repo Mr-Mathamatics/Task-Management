@@ -311,7 +311,7 @@ export default function App() {
               {visibleTasks.length === 0 && (
                 <div className="empty-state">
                   <div className="empty-icon">{search ? <Search size={22} /> : <ClipboardList size={22} />}</div>
-                  <h3>{search || priorityFilter !== "All" ? "No matching tasks" : filter === "Completed" ? "Nothing completed yet" : "Your list is clear"}</h3>
+                  <h3>{search || priorityFilter !== "All" || dueFilter !== "All dates" ? "No matching tasks" : filter === "Completed" ? "Nothing completed yet" : "Your list is clear"}</h3>
                   <p>{search || priorityFilter !== "All" ? "Try changing your search or filters." : "Add a task to turn your plans into progress."}</p>
                   {!search && priorityFilter === "All" && dueFilter === "All dates" && <button className="primary-button small" onClick={openNewTask}><Plus size={16} /> Create a task</button>}
                 </div>
