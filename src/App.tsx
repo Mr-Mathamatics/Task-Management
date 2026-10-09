@@ -1,4 +1,4 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { filterAndSortTasks, isOverdue, type Priority, type Task, type DueFilter, type SortOption } from "./taskUtils";
 import { useLocalStorage } from "./useLocalStorage";
 import {
@@ -75,6 +75,8 @@ export default function App() {
   const [priority, setPriority] = useState<Priority>("Medium");
   const [dueDate, setDueDate] = useState("");
   const [formError, setFormError] = useState("");
+  const modalRef = useRef<HTMLElement | null>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
 
   const completedCount = tasks.filter((task) => task.completed).length;
   const activeCount = tasks.length - completedCount;
@@ -98,6 +100,49 @@ export default function App() {
     setFormError("");
     setShowForm(false);
   }
+
+  useEffect(() => {
+    if (!showForm) return;
+
+    previousFocusRef.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    const modal = modalRef.current;
+    const firstInput = modal?.querySelector<HTMLElement>("form input:not([type=hidden]), form textarea, form select");
+    firstInput?.focus();
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setShowForm(false);
+        return;
+      }
+      if (event.key !== "Tab" || !modal) return;
+      const focusable = Array.from(modal.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ));
+      if (focusable.length === 0) {
+        event.preventDefault();
+        modal.focus();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      previousFocusRef.current?.focus();
+    };
+  }, [showForm]);
 
   function openNewTask() {
     setTitle("");
@@ -289,7 +334,7 @@ export default function App() {
               </div>
             </div>
 
-            <div className="task-list">
+            <div className="task-list" aria-live="polite" aria-relevant="additions removals">
               {visibleTasks.map((task) => (
                 <article key={task.id} className={`task-row ${task.completed ? "is-completed" : ""}`}>
                   <button className={`task-check ${task.completed ? "checked" : ""}`} onClick={() => toggleTask(task.id)} aria-label={task.completed ? `Mark ${task.title} as active` : `Complete ${task.title}`}>
@@ -319,7 +364,7 @@ export default function App() {
                 </div>
               )}
             </div>
-            <div className="panel-footer"><span>Showing <strong>{visibleTasks.length}</strong> of <strong>{tasks.length}</strong> tasks</span><span className="footer-note"><span className="live-dot" /> Changes save automatically</span></div>
+            <div className="panel-footer"><span role="status" aria-live="polite">Showing <strong>{visibleTasks.length}</strong> of <strong>{tasks.length}</strong> tasks</span><span className="footer-note"><span className="live-dot" /> Changes save automatically</span></div>
           </section>
 
           <div className="bottom-tip"><div className="tip-icon"><Sparkles size={17} /></div><p><strong>A little reminder</strong><span>Progress over perfection. One task at a time.</span></p><div className="tip-decoration">✳</div></div>
@@ -328,7 +373,7 @@ export default function App() {
 
       {showForm && (
         <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) resetForm(); }}>
-          <section className="task-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+          <section ref={modalRef} className="task-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" tabIndex={-1}>
             <div className="modal-header"><div><div className="modal-kicker">{editingId ? "MAKE AN UPDATE" : "A NEW BEGINNING"}</div><h2 id="modal-title">{editingId ? "Edit task" : "Create a task"}</h2><p>Give your next step a clear name.</p></div><button className="icon-button modal-close" onClick={resetForm} aria-label="Close dialog"><X size={19} /></button></div>
             <form onSubmit={handleSubmit}>
               <label className="form-label">Task title <span>*</span><input autoFocus value={title} onChange={(event) => { setTitle(event.target.value); setFormError(""); }} placeholder="e.g. Finish the landing page" maxLength={120} /></label>
