@@ -1,20 +1,10 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
+import { filterAndSortTasks, isOverdue, type Priority, type Task, type DueFilter, type SortOption } from "./taskUtils";
 import {
   Activity, CalendarDays, Check, CheckCheck, ChevronDown, Circle,
   ClipboardList, Clock3, Filter, LayoutDashboard, ListTodo, Plus,
   Search, Sparkles, Target, Trash2, X, Pencil, AlertCircle
 } from "lucide-react";
-
-type Priority = "Low" | "Medium" | "High";
-type Task = {
-  id: string;
-  title: string;
-  description: string;
-  completed: boolean;
-  priority: Priority;
-  dueDate: string;
-  createdAt: number;
-};
 
 type FilterType = "All tasks" | "Active" | "Completed";
 
@@ -64,18 +54,14 @@ function formatDueDate(value: string) {
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-function isOverdue(task: Task) {
-  if (!task.dueDate || task.completed) return false;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return new Date(`${task.dueDate}T00:00:00`) < today;
-}
 
 export default function App() {
   const [tasks, setTasks] = useState<Task[]>(readTasks);
   const [filter, setFilter] = useState<FilterType>("All tasks");
   const [search, setSearch] = useState("");
   const [priorityFilter, setPriorityFilter] = useState<Priority | "All">("All");
+  const [dueFilter, setDueFilter] = useState<DueFilter>("All dates");
+  const [sortOption, setSortOption] = useState<SortOption>("Newest first");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
@@ -91,20 +77,15 @@ export default function App() {
   const completedCount = tasks.filter((task) => task.completed).length;
   const activeCount = tasks.length - completedCount;
   const progress = tasks.length ? Math.round((completedCount / tasks.length) * 100) : 0;
-  const overdueCount = tasks.filter(isOverdue).length;
+  const overdueCount = tasks.filter((task) => isOverdue(task)).length;
 
-  const visibleTasks = useMemo(() => {
-    const normalizedSearch = search.trim().toLowerCase();
-    return tasks
-      .filter((task) => {
-        if (filter === "Active" && task.completed) return false;
-        if (filter === "Completed" && !task.completed) return false;
-        if (priorityFilter !== "All" && task.priority !== priorityFilter) return false;
-        if (normalizedSearch && !`${task.title} ${task.description}`.toLowerCase().includes(normalizedSearch)) return false;
-        return true;
-      })
-      .sort((a, b) => Number(a.completed) - Number(b.completed) || b.createdAt - a.createdAt);
-  }, [tasks, filter, priorityFilter, search]);
+  const visibleTasks = filterAndSortTasks(tasks, {
+    search,
+    status: filter,
+    priority: priorityFilter,
+    due: dueFilter,
+    sort: sortOption,
+  });
 
   function resetForm() {
     setTitle("");
@@ -277,6 +258,20 @@ export default function App() {
                 ))}
               </div>
               <div className="toolbar-controls">
+                <label className="priority-select-wrap" aria-label="Filter by due date">
+                  <CalendarDays size={15} />
+                  <select value={dueFilter} onChange={(event) => setDueFilter(event.target.value as DueFilter)}>
+                    <option>All dates</option><option>Due today</option><option>Upcoming</option><option>Overdue</option>
+                  </select>
+                  <ChevronDown size={14} className="select-chevron" />
+                </label>
+                <label className="priority-select-wrap" aria-label="Sort tasks">
+                  <Filter size={15} />
+                  <select value={sortOption} onChange={(event) => setSortOption(event.target.value as SortOption)}>
+                    <option>Newest first</option><option>Due date</option><option>Priority</option>
+                  </select>
+                  <ChevronDown size={14} className="select-chevron" />
+                </label>
                 <label className="search-box">
                   <Search size={16} />
                   <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search tasks..." aria-label="Search tasks" />
@@ -316,9 +311,9 @@ export default function App() {
               {visibleTasks.length === 0 && (
                 <div className="empty-state">
                   <div className="empty-icon">{search ? <Search size={22} /> : <ClipboardList size={22} />}</div>
-                  <h3>{search || priorityFilter !== "All" ? "No matching tasks" : filter === "Completed" ? "Nothing completed yet" : "Your list is clear"}</h3>
-                  <p>{search || priorityFilter !== "All" ? "Try changing your search or filters." : "Add a task to turn your plans into progress."}</p>
-                  {!search && priorityFilter === "All" && <button className="primary-button small" onClick={openNewTask}><Plus size={16} /> Create a task</button>}
+                  <h3>{search || priorityFilter !== "All" || dueFilter !== "All dates" ? "No matching tasks" : filter === "Completed" ? "Nothing completed yet" : "Your list is clear"}</h3>
+                  <p>{search || priorityFilter !== "All" || dueFilter !== "All dates" ? "Try changing your search or filters." : "Add a task to turn your plans into progress."}</p>
+                  {!search && priorityFilter === "All" && dueFilter === "All dates" && <button className="primary-button small" onClick={openNewTask}><Plus size={16} /> Create a task</button>}
                 </div>
               )}
             </div>
